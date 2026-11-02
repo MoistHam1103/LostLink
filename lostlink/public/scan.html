@@ -1,0 +1,24 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Found item - LostLink</title><link rel="stylesheet" href="/style.css"></head><body>
+<main><div id="msg" class="msg hidden"></div>
+<div id="tag" class="tag hidden"><p class="muted" style="margin:0" id="sch"></p><h1 id="nm"></h1><span class="pill" id="st"></span>
+<img id="ph" class="photo hidden" alt="Photo of the item" style="margin-top:.8rem"><p id="ds"></p>
+<div class="owner">This item belongs to<b id="ow"></b><span id="gs"></span></div>
+<p class="muted">Thank you for scanning. Tell us where you found it and the school staff will return it to the owner.</p></div>
+<form id="f" class="card hidden"><h2>I found this item</h2>
+<label for="loc">Where did you find it?</label><input id="loc" required maxlength="120" placeholder="Library, 2nd floor">
+<label for="nt">Note <small>(optional)</small></label><textarea id="nt" maxlength="300"></textarea>
+<div class="grid2"><div><label for="fn">Your name <small>(optional)</small></label><input id="fn" maxlength="80"></div><div><label for="fc">Your contact <small>(optional)</small></label><input id="fc" maxlength="60"></div></div>
+<div id="m" class="msg hidden" role="alert"></div><button class="btn" id="go">Send report</button>
+<p class="muted">Best option: hand the item to the school staff office.</p></form></main>
+<script src="/app.js"></script><script>
+const tok=location.pathname.split('/').pop();
+(async()=>{try{const r=await api('/api/public/item/'+tok);
+ $('#sch').textContent=r.school;$('#nm').textContent=r.item_name;$('#st').textContent=r.status==='returned'?'Already returned':r.category||'Item';$('#st').className='pill '+(r.status==='returned'?'returned':'');
+ $('#ds').textContent=r.description||'';$('#ow').textContent=r.owner_name;$('#gs').textContent=r.grade_section||'';
+ if(r.photo){$('#ph').src=r.photo;$('#ph').classList.remove('hidden')}
+ $('#tag').classList.remove('hidden');if(r.status!=='returned')$('#f').classList.remove('hidden')}
+ catch(x){show($('#msg'),x.message+' Check that the QR code is complete, or bring the item to the school staff.','err')}})();
+$('#f').onsubmit=async e=>{e.preventDefault();const b=$('#go');b.disabled=true;
+ try{await api('/api/public/item/'+tok+'/found',{location:$('#loc').value,note:$('#nt').value,finder_name:$('#fn').value,finder_contact:$('#fc').value});
+  $('#f').classList.add('hidden');show($('#msg'),'Report sent. The school staff have been notified. Thank you!','ok')}
+ catch(x){show($('#m'),x.message,'err')}b.disabled=false};</script></body></html>

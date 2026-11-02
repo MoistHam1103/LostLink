@@ -1,0 +1,14 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Check my item - LostLink</title><link rel="stylesheet" href="/style.css"></head><body>
+<main><h1>Check my item</h1>
+<form id="f" class="card"><label for="ref">Reference code</label><input id="ref" required placeholder="LL-0001" autocapitalize="characters">
+<label for="sn">Student number</label><input id="sn" required><div id="m" class="msg hidden" role="alert"></div><button class="btn" style="margin-top:1rem">Check status</button></form>
+<div id="out" class="card hidden"></div></main>
+<script src="/app.js"></script><script>header();
+$('#f').onsubmit=async e=>{e.preventDefault();show($('#m'),'','err');const o=$('#out');o.classList.add('hidden');
+ try{const r=await api('/api/check',{ref:$('#ref').value,student_no:$('#sn').value});o.replaceChildren();
+  const h=document.createElement('h2');h.textContent=r.item_name+' ('+r.ref+')';const p=document.createElement('span');p.className='pill '+r.status;p.textContent=STATUS_TEXT[r.status];o.append(h,p);
+  if(r.status==='pending'){const t=document.createElement('p');t.textContent='Bring the item to the staff office to get your QR tag.';o.append(t)}
+  if(r.reports.length){const t=document.createElement('h2');t.style.marginTop='1.2rem';t.textContent='Found reports';o.append(t);
+   r.reports.forEach(x=>{const d=document.createElement('p');d.textContent=when(x.created_at)+' - '+(x.location||'location not given')+(x.note?': '+x.note:'');o.append(d)});
+   const t2=document.createElement('p');t2.className='muted';t2.textContent='Go to the staff office to pick up your item.';o.append(t2)}
+  o.classList.remove('hidden')}catch(x){show($('#m'),x.message,'err')}};</script></body></html>

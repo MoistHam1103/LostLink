@@ -1,0 +1,2 @@
+{ "name": "lostlink", "version": "1.0.0", "description": "QR-based lost and found for students", "main": "server.js",
+  "scripts": { "start": "node server.js" }, "engines": { "node": ">=22.13" } }

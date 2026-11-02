@@ -1,0 +1,24 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Scan a tag - LostLink</title><link rel="stylesheet" href="/style.css">
+<style>.cam{position:relative;background:#000;border-radius:12px;overflow:hidden;aspect-ratio:1;max-width:420px;margin:0 auto}.cam video{width:100%;height:100%;object-fit:cover}
+.cam::after{content:"";position:absolute;inset:18%;border:3px solid var(--hi);border-radius:14px;pointer-events:none}</style></head><body>
+<main><h1>Scan a QR tag</h1><p class="muted">Point your camera at the QR sticker on the item. You will see who it belongs to.</p>
+<div class="cam"><video id="v" playsinline muted></video></div>
+<div id="m" class="msg hidden" role="alert"></div>
+<div class="row" style="margin-top:1rem;justify-content:center"><button class="btn" id="start">Start camera</button>
+<label class="btn alt" style="margin:0;cursor:pointer">Use a photo<input id="pic" type="file" accept="image/*" capture="environment" hidden></label></div>
+<p class="muted" style="text-align:center;margin-top:1rem">You can also scan with your phone's normal camera app. It opens the same page.</p>
+<canvas id="c" hidden></canvas></main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js"></script><script src="/app.js"></script><script>
+header();const v=$('#v'),c=$('#c'),ctx=c.getContext('2d',{willReadFrequently:true});let stream,done=false;
+function go(text){let u;try{u=new URL(text,location.href)}catch{return false}
+ if(!/^\/i\/[\w-]{6,32}$/.test(u.pathname))return false;done=true;stream&&stream.getTracks().forEach(t=>t.stop());location.href=u.pathname;return true}
+function decode(src,w,h){c.width=w;c.height=h;ctx.drawImage(src,0,0,w,h);const d=ctx.getImageData(0,0,w,h);const r=window.jsQR&&jsQR(d.data,w,h);return r&&r.data}
+function loop(){if(done)return;if(v.readyState>=2&&v.videoWidth){const t=decode(v,v.videoWidth,v.videoHeight);if(t&&!go(t))show($('#m'),'That QR code is not a LostLink tag.','err')}requestAnimationFrame(loop)}
+$('#start').onclick=async()=>{show($('#m'),'','err');
+ if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){show($('#m'),'The camera needs a secure (https) address. Use "Use a photo" or your phone camera app instead.','err');return}
+ if(!window.jsQR){show($('#m'),'The scanner could not load. Check your internet connection, or use "Use a photo".','err');return}
+ try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});v.srcObject=stream;await v.play();$('#start').textContent='Scanning...';loop()}
+ catch(x){show($('#m'),'Camera blocked. Allow camera access in your browser settings, or use "Use a photo".','err')}};
+$('#pic').onchange=e=>{const f=e.target.files[0];if(!f)return;const im=new Image();im.onload=()=>{const k=Math.min(1,1200/Math.max(im.width,im.height));const t=window.jsQR&&decode(im,Math.round(im.width*k),Math.round(im.height*k));
+ if(!t)show($('#m'),'No QR code found in that photo. Try again, closer and in better light.','err');else if(!go(t))show($('#m'),'That QR code is not a LostLink tag.','err')};im.src=URL.createObjectURL(f)};
+</script></body></html>

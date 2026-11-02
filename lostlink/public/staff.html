@@ -1,0 +1,49 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Staff - LostLink</title><link rel="stylesheet" href="/style.css"></head><body>
+<main class="wide">
+<form id="login" class="card" style="max-width:360px;margin:2rem auto"><h1>Staff login</h1><label for="pin">PIN</label><input id="pin" type="password" required autocomplete="current-password" inputmode="numeric">
+<div id="lm" class="msg hidden" role="alert"></div><button class="btn" style="margin-top:1rem">Log in</button></form>
+<div id="panel" class="hidden">
+<div class="row" style="justify-content:space-between"><h1 style="margin:0">Items</h1><button class="btn alt sm" id="out">Log out</button></div>
+<div id="alert" class="msg err hidden"></div>
+<div class="card" style="margin-top:1rem"><div class="row"><input id="q" placeholder="Search name, item, student number, code" style="flex:1;min-width:220px">
+<select id="flt" style="width:auto"><option value="">All</option><option value="pending">Waiting for staff</option><option value="tagged">QR issued</option><option value="found">Someone found it</option><option value="returned">Returned</option></select></div></div>
+<div class="card tablewrap"><table><thead><tr><th>Code</th><th>Item</th><th>Owner</th><th>Status</th><th></th></tr></thead><tbody id="rows"></tbody></table><p id="empty" class="muted hidden">No items yet.</p></div>
+<form id="bs" class="card"><h2>Wifi address used inside QR codes</h2><p class="muted">Phones that scan a QR must be on the same wifi and can reach this address. Change it if the computer's wifi address changes, then reprint any tags that were made with the old address.</p>
+<div class="row"><input id="bu" style="flex:1;min-width:220px" aria-label="Base URL"><button class="btn sm">Save</button></div><div id="bm" class="msg hidden"></div><h2 style="margin-top:1.2rem">Open on a phone</h2><p class="muted">Students scan this with their phone camera (same wifi) to open LostLink.</p><div id="sq" class="qrbox"></div></form></div>
+<dialog id="dlg"></dialog></main>
+<script src="/app.js"></script><script>
+let items=[];const $r=$('#rows');
+const cell=(tr,t)=>{const td=document.createElement('td');if(t instanceof Node)td.append(t);else td.textContent=t;tr.append(td);return td};
+const pill=s=>{const p=document.createElement('span');p.className='pill '+s;p.textContent=STATUS_TEXT[s];return p};
+function btn(t,fn,cls=''){const b=document.createElement('button');b.className='btn sm '+cls;b.textContent=t;b.onclick=fn;return b}
+async function enter(){$('#login').classList.add('hidden');$('#panel').classList.remove('hidden');await load();setInterval(()=>$('#dlg').open||load(),15000)}
+async function load(){try{const r=await api('/api/staff/items');items=r.items;$('#bu').value=r.base_url;$('#sq').innerHTML=r.site_qr;draw()}catch(x){if(x.status===401){$('#login').classList.remove('hidden');$('#panel').classList.add('hidden')}}}
+function draw(){const q=$('#q').value.toLowerCase(),f=$('#flt').value;$r.replaceChildren();
+ const n=items.filter(i=>i.status==='found').length;show($('#alert'),n?n+' item'+(n>1?'s have':' has')+' been reported found. Open it to see where.':'','err');
+ const list=items.filter(i=>(!f||i.status===f)&&(!q||[i.ref,i.item_name,i.owner_name,i.student_no].join(' ').toLowerCase().includes(q)));
+ $('#empty').classList.toggle('hidden',list.length>0);
+ list.forEach(i=>{const tr=document.createElement('tr');cell(tr,i.ref);cell(tr,i.item_name);cell(tr,i.owner_name+(i.grade_section?' ('+i.grade_section+')':''));cell(tr,pill(i.status));
+  const a=document.createElement('div');a.className='row';
+  if(i.status==='pending')a.append(btn('Verify and issue QR',()=>issue(i.id)));a.append(btn('Open',()=>openItem(i.id),'alt'));cell(tr,a);$r.append(tr)})}
+async function issue(id){try{await api('/api/staff/items/'+id+'/issue',{});await load();openItem(id)}catch(x){alert(x.message)}}
+async function openItem(id){const d=await api('/api/staff/items/'+id),dl=$('#dlg');dl.replaceChildren();
+ const h=document.createElement('h2');h.textContent=d.item_name+' ('+d.ref+')';dl.append(h,pill(d.status));
+ const info=document.createElement('p');info.textContent=[d.owner_name,d.grade_section,'Student no. '+d.student_no,'Contact: '+d.contact].filter(Boolean).join(' | ');dl.append(info);
+ if(d.description){const p=document.createElement('p');p.textContent=d.description;dl.append(p)}
+ if(d.photo){const im=document.createElement('img');im.src=d.photo;im.className='preview';im.alt='Item photo';dl.append(im)}
+ if(d.reports.length){const t=document.createElement('h2');t.textContent='Found reports';t.style.marginTop='1rem';dl.append(t);
+  d.reports.forEach(r=>{const p=document.createElement('p');p.textContent=when(r.created_at)+' | '+(r.location||'no location')+(r.note?' | '+r.note:'')+(r.finder_name||r.finder_contact?' | Finder: '+[r.finder_name,r.finder_contact].filter(Boolean).join(', '):'');dl.append(p)})}
+ if(d.qr){const q=document.createElement('div');q.className='qrbox';q.innerHTML=d.qr;dl.append(q)}
+ const a=document.createElement('div');a.className='row';a.style.marginTop='1rem';
+ if(d.qr)a.append(Object.assign(document.createElement('a'),{className:'btn sm',textContent:'Print QR label',href:'/print?id='+id,target:'_blank'}));
+ else a.append(btn('Verify and issue QR',async()=>{await issue(id)}));
+ if(d.status==='found'||d.status==='tagged')a.append(btn(d.status==='found'?'Mark returned':'Mark returned',async()=>{await api('/api/staff/items/'+id+'/status',{status:'returned'});dl.close();load()},'alt'));
+ if(d.status==='returned'||d.status==='found')a.append(btn('Back to QR issued',async()=>{await api('/api/staff/items/'+id+'/status',{status:'tagged'});dl.close();load()},'alt'));
+ a.append(btn('Delete',async()=>{if(confirm('Delete this item and its reports?')){await api('/api/staff/items/'+id,null,'DELETE');dl.close();load()}},'danger'));
+ a.append(btn('Close',()=>dl.close(),'alt'));dl.append(a);dl.showModal()}
+$('#login').onsubmit=async e=>{e.preventDefault();try{await api('/api/staff/login',{pin:$('#pin').value});enter()}catch(x){show($('#lm'),x.message,'err')}};
+$('#out').onclick=async()=>{await api('/api/staff/logout',{});location.reload()};
+$('#q').oninput=$('#flt').onchange=draw;
+$('#bs').onsubmit=async e=>{e.preventDefault();try{const r=await api('/api/staff/settings',{base_url:$('#bu').value});$('#bu').value=r.base_url;show($('#bm'),'Saved.','ok')}catch(x){show($('#bm'),x.message,'err')}};
+header();api('/api/staff/items').then(()=>enter()).catch(()=>{});
+</script></body></html>

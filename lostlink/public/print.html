@@ -1,0 +1,11 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>QR label - LostLink</title><link rel="stylesheet" href="/style.css">
+<style>body{background:#fff;color:#000}.lab{width:8.5cm;border:2px dashed #000;border-radius:10px;padding:.5cm;margin:1rem auto;text-align:center;font-family:"Segoe UI",system-ui,sans-serif}
+.lab svg{width:6cm;height:6cm}.lab h2{margin:.2cm 0 0;font-size:16pt}.lab p{margin:.1cm 0;font-size:10pt}.lab .big{font-size:13pt;font-weight:700}
+.bar{text-align:center;margin:1rem}@media print{.bar{display:none}.lab{margin:0}}</style></head><body>
+<div class="bar"><button class="btn" onclick="print()">Print</button> <span class="muted">Cut along the dashed line and stick the label on the item.</span></div>
+<div class="lab" id="lab">Loading...</div>
+<script src="/app.js"></script><script>
+(async()=>{const id=new URLSearchParams(location.search).get('id');
+ try{const d=await api('/api/staff/items/'+id);if(!d.qr)throw new Error('QR not issued yet.');const L=$('#lab');L.innerHTML=d.qr;
+  [['p','big','If found, scan this QR'],['h2','',d.item_name],['p','big',d.owner_name+(d.grade_section?' - '+d.grade_section:'')],['p','',d.school+' | '+d.ref]].forEach(([t,c,x])=>{const e=document.createElement(t);e.className=c;e.textContent=x;t==='p'&&c&&x.startsWith('If')?L.prepend(e):L.append(e)})}
+ catch(x){$('#lab').textContent=x.status===401?'Log in on the Staff page first.':x.message}})();</script></body></html>
